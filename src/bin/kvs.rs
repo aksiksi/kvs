@@ -1,6 +1,7 @@
 use clap::{App, AppSettings, Arg, SubCommand};
+use kvs::{KvStore, Result};
 
-fn main() {
+fn main() -> Result<()> {
     let matches = App::new("KVS")
         .setting(AppSettings::ArgRequiredElseHelp)
         .version(env!("CARGO_PKG_VERSION"))
@@ -28,25 +29,42 @@ fn main() {
     // If version was requested, print it and return
     if matches.is_present("V") {
         println!("{}", env!("CARGO_PKG_VERSION"));
-        return;
+        return Ok(());
     }
+
+    let mut store = KvStore::open(std::env::current_dir()?)?;
 
     match matches.subcommand() {
         ("set", sub_match) => {
-            let _key = sub_match.unwrap().value_of("key").unwrap();
-            let _value = sub_match.unwrap().value_of("value").unwrap();
-            unimplemented!()
+            let key = sub_match.unwrap().value_of("key").unwrap().to_owned();
+            let value = sub_match.unwrap().value_of("value").unwrap().to_owned();
+            store.set(key, value)?;
         }
         ("get", sub_match) => {
-            let _key = sub_match.unwrap().value_of("key").unwrap();
-            unimplemented!()
+            let key = sub_match.unwrap().value_of("key").unwrap().to_owned();
+            match store.get(key)? {
+                None => println!("Key not found"),
+                Some(value) => println!("{}", value),
+            }
         }
         ("rm", sub_match) => {
-            let _key = sub_match.unwrap().value_of("key").unwrap();
-            unimplemented!()
+            let key = sub_match.unwrap().value_of("key").unwrap().to_owned();
+            match store.remove(key) {
+                Err(kvs::Error::KeyNotFound) => {
+                    println!("Key not found");
+                    std::process::exit(1);
+                }
+                Err(e) => {
+                    // Abort on any other error
+                    return Err(e);
+                }
+                Ok(_) => (),
+            }
         }
         (_, _) => {
             panic!("Unexpected subcommand");
         }
     }
+
+    Ok(())
 }
