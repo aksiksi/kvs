@@ -1,0 +1,22 @@
+[package]
+name = "kvs"
+version = "0.1.0"
+authors = ["Assil Ksiksi <cyph0nik@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+clap = "2"
+
+[dev-dependencies]
+assert_cmd = "0.11.0"
+predicates = "1.0.0"
+
+# We do not need the lib and bin tests
+[lib]
+test = false
+doctest = false
+
+[[bin]]
+name = "kvs"
+test = false
+doctest = false
