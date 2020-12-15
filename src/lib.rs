@@ -76,8 +76,8 @@ impl KvStore {
                 new_log.write(&buf)?;
             }
 
-            // Flush all data to the new log
-            new_log.flush()?;
+            // Ensure all data is flushed to the new log (fsync)
+            new_log.sync_all()?;
 
             // Update the log position
             let new_size = new_log.metadata()?.len();
@@ -174,7 +174,6 @@ impl KvStore {
 
         // Insert this entry into the log
         self.log.write(&buf)?;
-        self.log.flush()?;
 
         // Store the key in the in-memory index
         self.store.insert(key, self.log_pos);
@@ -218,7 +217,6 @@ impl KvStore {
                 let entry = Entry::Remove(key);
                 let buf = rmp_serde::to_vec(&entry)?;
                 self.log.write(&buf)?;
-                self.log.flush()?;
                 self.log_pos += buf.len();
                 Ok(())
             }
