@@ -6,8 +6,10 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 mod error;
+mod engine;
 
 pub use error::{Error, Result};
+pub use engine::KvsEngine;
 
 const LOG_NAME: &str = "kvs.log";
 
@@ -175,7 +177,10 @@ impl KvStore {
         }
     }
 
-    pub fn set(&mut self, key: String, value: String) -> Result<()> {
+}
+
+impl KvsEngine for KvStore {
+    fn set(&mut self, key: String, value: String) -> Result<()> {
         // Serialize this entry
         let entry = Entry::Set(key.clone(), value);
         let buf = rmp_serde::to_vec(&entry)?;
@@ -197,7 +202,7 @@ impl KvStore {
         Ok(())
     }
 
-    pub fn get(&mut self, key: String) -> Result<Option<String>> {
+    fn get(&mut self, key: String) -> Result<Option<String>> {
         // Figure out the position of the value in the log
         let pos = if let Some(p) = self.store.get(&key) {
             *p
@@ -223,7 +228,7 @@ impl KvStore {
         Ok(Some(value))
     }
 
-    pub fn remove(&mut self, key: String) -> Result<()> {
+    fn remove(&mut self, key: String) -> Result<()> {
         match self.store.remove(&key) {
             None => Err(Error::KeyNotFound),
             Some(_) => {

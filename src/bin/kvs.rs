@@ -1,5 +1,5 @@
 use clap::{App, AppSettings, Arg, SubCommand};
-use kvs::{KvStore, Result};
+use kvs::{KvsEngine, KvStore, Result};
 
 fn main() -> Result<()> {
     let matches = App::new("KVS")
