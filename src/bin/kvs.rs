@@ -1,5 +1,6 @@
+/// KVS CLI
 use clap::{App, AppSettings, Arg, SubCommand};
-use kvs::{KvsEngine, KvStore, Result};
+use kvs::{KvStore, KvsEngine, Result};
 
 fn main() -> Result<()> {
     let matches = App::new("KVS")

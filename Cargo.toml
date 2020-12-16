@@ -8,6 +8,8 @@ edition = "2018"
 clap = "2"
 serde = "1"
 rmp-serde = "0.15.0"
+log = "0.4.11"
+env_logger = "0.8.2"
 
 [dev-dependencies]
 criterion = "0.3"
@@ -24,6 +26,18 @@ doctest = false
 
 [[bin]]
 name = "kvs"
+test = false
+doctest = false
+
+[[bin]]
+name = "kvs-client"
+path = "src/bin/kvs_client.rs"
+test = false
+doctest = false
+
+[[bin]]
+name = "kvs-server"
+path = "src/bin/kvs_server.rs"
 test = false
 doctest = false
 

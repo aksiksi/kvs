@@ -5,11 +5,11 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-mod error;
 mod engine;
+mod error;
 
-pub use error::{Error, Result};
 pub use engine::KvsEngine;
+pub use error::{Error, Result};
 
 const LOG_NAME: &str = "kvs.log";
 
@@ -54,9 +54,7 @@ impl KvStore {
             .append(true)
             .open(&log_file)?;
 
-        let read_log = OpenOptions::new()
-            .read(true)
-            .open(&log_file)?;
+        let read_log = OpenOptions::new().read(true).open(&log_file)?;
 
         let mut kvs = Self {
             store: HashMap::new(),
@@ -92,7 +90,7 @@ impl KvStore {
             .write(true)
             .open(&new_log_path)?;
 
-        let mut new_log_writer= BufWriter::new(new_log);
+        let mut new_log_writer = BufWriter::new(new_log);
         let new_log_reader = BufReader::new(File::open(&new_log_path)?);
 
         // Construct a Vec of all keys and indices, sorted by index in ascending order.
@@ -176,7 +174,6 @@ impl KvStore {
             }
         }
     }
-
 }
 
 impl KvsEngine for KvStore {
