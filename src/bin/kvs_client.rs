@@ -1,20 +1,19 @@
 /// KVS Client
 use clap::{App, AppSettings, Arg, SubCommand};
 
-use kvs::{KvsClient, Result};
+use kvs::{client::KvsClient, Result};
 
 const DEFAULT_SERVER_ADDR: &str = "127.0.0.1:4000";
 
 fn main() -> Result<()> {
     env_logger::init();
-    log::info!("Hello world!");
 
     let matches = App::new("kvs-client")
         .setting(AppSettings::ArgRequiredElseHelp)
         .version(env!("CARGO_PKG_VERSION"))
         .author(env!("CARGO_PKG_AUTHORS"))
         .about("KVS Client")
-        .arg(Arg::with_name("V").help("Print version info"))
+        .arg(Arg::with_name("V").short("V").help("Print version info"))
         .arg(
             Arg::with_name("addr")
                 .long("addr")
@@ -58,7 +57,12 @@ fn main() -> Result<()> {
         ("get", sub_match) => {
             let key = sub_match.unwrap().value_of("key").unwrap().to_owned();
             let value = client.get(key)?;
-            println!("{}", value);
+
+            if let Some(value) = value {
+                println!("{}", value);
+            } else {
+                println!("Key not found");
+            }
         }
         ("rm", sub_match) => {
             let key = sub_match.unwrap().value_of("key").unwrap().to_owned();

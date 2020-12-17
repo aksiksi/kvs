@@ -1,18 +1,19 @@
 /// KVS Server
 use clap::{App, AppSettings, Arg};
 
-use kvs::{KvStore, KvsServer, Result};
+use kvs::{KvStore, server::KvsServer, Result};
 
 fn main() -> Result<()> {
-    env_logger::init();
-    log::info!("Hello world!");
+    env_logger::builder()
+        .filter_level(log::LevelFilter::Info)
+        .init();
 
     let matches = App::new("kvs-server")
         .setting(AppSettings::ArgRequiredElseHelp)
         .version(env!("CARGO_PKG_VERSION"))
         .author(env!("CARGO_PKG_AUTHORS"))
         .about("KVS Server")
-        .arg(Arg::with_name("V").help("Print version info"))
+        .arg(Arg::with_name("V").short("V").help("Print version info"))
         .arg(
             Arg::with_name("addr")
                 .long("addr")
@@ -36,6 +37,8 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
+    log::info!("Version: {}", env!("CARGO_PKG_VERSION"));
+
     let current_dir = std::env::current_dir()?;
 
     let current_engine = if KvStore::is_log_present(&current_dir) {
@@ -56,6 +59,8 @@ fn main() -> Result<()> {
         }
     }
 
+    log::info!("Engine: {}", engine);
+
     let engine = match engine {
         "kvs" => {
             let engine = KvStore::open(current_dir)?;
@@ -68,6 +73,8 @@ fn main() -> Result<()> {
     };
 
     let addr = matches.value_of("addr").unwrap();
+
+    log::info!("Address: {}", addr);
 
     let mut server = KvsServer::new(engine, addr.to_string())?;
     server.start()?;

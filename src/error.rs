@@ -1,9 +1,11 @@
+use serde::{Deserialize, Serialize};
+
 pub type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize, Serialize)]
 pub enum Error {
     Generic(String),
-    IOError(std::io::Error),
+    IOError(String),
     SerializeError(String),
     DeserializeError(String),
     KeyNotFound,
@@ -15,7 +17,7 @@ impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::Generic(msg) => write!(f, "{}", msg),
-            Self::IOError(err) => write!(f, "{}", err.to_string()),
+            Self::IOError(msg) => write!(f, "{}", msg.to_string()),
             Self::SerializeError(msg) => write!(f, "SerializeError: {}", msg),
             Self::DeserializeError(msg) => write!(f, "DeserializeError: {}", msg),
             Self::KeyNotFound => write!(f, "Key not found"),
@@ -25,7 +27,7 @@ impl std::fmt::Display for Error {
 
 impl From<std::io::Error> for Error {
     fn from(err: std::io::Error) -> Self {
-        Self::IOError(err)
+        Self::IOError(err.to_string())
     }
 }
 

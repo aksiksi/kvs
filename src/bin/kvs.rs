@@ -8,7 +8,7 @@ fn main() -> Result<()> {
         .version(env!("CARGO_PKG_VERSION"))
         .author(env!("CARGO_PKG_AUTHORS"))
         .about("KVS CLI")
-        .arg(Arg::with_name("V").help("Print version info"))
+        .arg(Arg::with_name("V").short("V").help("Print version info"))
         .subcommand(
             SubCommand::with_name("set")
                 .about("Set a key and value")
