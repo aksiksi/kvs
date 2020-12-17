@@ -35,6 +35,12 @@ impl From<rmp_serde::decode::Error> for Error {
     }
 }
 
+impl From<std::string::FromUtf8Error> for Error {
+    fn from(err: std::string::FromUtf8Error) -> Self {
+        Self::DeserializeError(err.to_string())
+    }
+}
+
 impl From<rmp_serde::encode::Error> for Error {
     fn from(err: rmp_serde::encode::Error) -> Self {
         Self::SerializeError(err.to_string())

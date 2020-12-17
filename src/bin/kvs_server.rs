@@ -1,7 +1,7 @@
 /// KVS Server
 use clap::{App, AppSettings, Arg};
 
-use kvs::Result;
+use kvs::{KvStore, KvsServer, Result};
 
 fn main() -> Result<()> {
     env_logger::init();
@@ -25,6 +25,7 @@ fn main() -> Result<()> {
                 .long("engine")
                 .value_name("ENGINE-NAME")
                 .possible_values(&["kvs", "sled"])
+                .default_value("kvs")
                 .help("KV engine name"),
         )
         .get_matches();
@@ -34,6 +35,42 @@ fn main() -> Result<()> {
         println!("{}", env!("CARGO_PKG_VERSION"));
         return Ok(());
     }
+
+    let current_dir = std::env::current_dir()?;
+
+    let current_engine = if KvStore::is_log_present(&current_dir) {
+        Some("kvs")
+    } else {
+        None
+    };
+
+    let engine = matches.value_of("engine").unwrap();
+
+    if let Some(curr) = current_engine {
+        if curr != engine {
+            println!(
+                "Current engine {} does not match selected engine {}",
+                curr, engine
+            );
+            std::process::exit(1)
+        }
+    }
+
+    let engine = match engine {
+        "kvs" => {
+            let engine = KvStore::open(current_dir)?;
+            Box::new(engine)
+        }
+        "sled" => {
+            unimplemented!()
+        }
+        _ => panic!("Unexpected engine!"),
+    };
+
+    let addr = matches.value_of("addr").unwrap();
+
+    let mut server = KvsServer::new(engine, addr.to_string())?;
+    server.start()?;
 
     Ok(())
 }

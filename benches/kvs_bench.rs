@@ -1,7 +1,7 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use tempfile::TempDir;
 
-use kvs::KvStore;
+use kvs::{KvStore, KvsEngine};
 
 fn kvs_bench(c: &mut Criterion) {
     let d1 = TempDir::new().unwrap();
