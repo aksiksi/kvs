@@ -28,7 +28,6 @@ fn main() -> Result<()> {
                 .long("engine")
                 .value_name("ENGINE-NAME")
                 .possible_values(&["kvs", "sled"])
-                .default_value("kvs")
                 .help("KV engine name"),
         )
         .get_matches();
@@ -53,7 +52,13 @@ fn main() -> Result<()> {
         None
     };
 
-    let engine = matches.value_of("engine").unwrap();
+    let engine = match matches.value_of("engine") {
+        None => {
+            // If no engine was provided, use the detected engine, or default to "kvs"
+            current_engine.unwrap_or("kvs")
+        }
+        Some(engine) => engine,
+    };
 
     if let Some(curr) = current_engine {
         // If the user provided an engine that does not match current engine, error out

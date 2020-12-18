@@ -65,6 +65,9 @@ impl From<&str> for Error {
 
 impl From<sled::Error> for Error {
     fn from(err: sled::Error) -> Self {
-        Self::SledError(err.to_string())
+        match err {
+            sled::Error::CollectionNotFound(_) => Self::KeyNotFound,
+            _ => Self::SledError(err.to_string()),
+        }
     }
 }

@@ -1,7 +1,7 @@
 /// KVS Client
 use clap::{App, AppSettings, Arg, SubCommand};
 
-use kvs::{client::KvsClient, Result};
+use kvs::{client::KvsClient, Error, Result};
 
 const DEFAULT_SERVER_ADDR: &str = "127.0.0.1:4000";
 
@@ -57,30 +57,57 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    let addr = matches.value_of("addr").unwrap_or(DEFAULT_SERVER_ADDR);
-
     match matches.subcommand() {
         ("set", sub_match) => {
-            let mut client = KvsClient::new(addr)?;
+            let addr = sub_match
+                .unwrap()
+                .value_of("addr")
+                .unwrap_or(DEFAULT_SERVER_ADDR);
+            let mut client = KvsClient::connect(addr)?;
             let key = sub_match.unwrap().value_of("key").unwrap().to_owned();
             let value = sub_match.unwrap().value_of("value").unwrap().to_owned();
             client.set(key, value)?;
         }
         ("get", sub_match) => {
-            let mut client = KvsClient::new(addr)?;
+            let addr = sub_match
+                .unwrap()
+                .value_of("addr")
+                .unwrap_or(DEFAULT_SERVER_ADDR);
+            let mut client = KvsClient::connect(addr)?;
             let key = sub_match.unwrap().value_of("key").unwrap().to_owned();
-            let value = client.get(key)?;
+            let value = client.get(key);
 
-            if let Some(value) = value {
-                println!("{}", value);
-            } else {
-                println!("Key not found");
+            match value {
+                Ok(value) => {
+                    if let Some(value) = value {
+                        println!("{}", value);
+                    } else {
+                        println!("Key not found");
+                    }
+                }
+                Err(Error::KeyNotFound) => {
+                    println!("Key not found");
+                    std::process::exit(1);
+                }
+                Err(e) => return Err(e),
             }
         }
         ("rm", sub_match) => {
-            let mut client = KvsClient::new(addr)?;
+            let addr = sub_match
+                .unwrap()
+                .value_of("addr")
+                .unwrap_or(DEFAULT_SERVER_ADDR);
+            let mut client = KvsClient::connect(addr)?;
             let key = sub_match.unwrap().value_of("key").unwrap().to_owned();
-            client.remove(key)?;
+            match client.remove(key) {
+                Ok(_) => (),
+                Err(Error::KeyNotFound) => {
+                    // NOTE: tests check for stderr
+                    eprintln!("Key not found");
+                    std::process::exit(1);
+                }
+                Err(e) => return Err(e),
+            }
         }
         (s, _) => {
             panic!("Unexpected subcommand: \"{}\"", s);

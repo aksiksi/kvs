@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::error::Result;
+use crate::error::{Error, Result};
 
 pub trait KvsEngine {
     fn set(&mut self, key: String, value: String) -> Result<()>;
@@ -14,9 +14,9 @@ pub struct SledStore {
 }
 
 impl SledStore {
-    const LOG_NAME: &'static str = "sled.log";
+    const LOG_NAME: &'static str = "sled";
 
-    /// Returns `true` if a log already exists
+    /// Returns `true` if log already exists
     pub fn is_log_present(path: impl Into<PathBuf>) -> bool {
         let log_dir = path.into();
         let log_file = log_dir.join(Self::LOG_NAME);
@@ -39,14 +39,20 @@ impl KvsEngine for SledStore {
     }
 
     fn get(&mut self, key: String) -> Result<Option<String>> {
-        Ok(self
+        let value = self
             .db
             .get(key.as_bytes())?
-            .map(|v| String::from_utf8(v.to_vec()).unwrap()))
+            .map(|v| String::from_utf8(v.to_vec()).unwrap());
+
+        Ok(value)
     }
 
     fn remove(&mut self, key: String) -> Result<()> {
-        self.db.remove(key.as_bytes())?;
-        Ok(())
+        let res = self.db.remove(key.as_bytes())?;
+
+        match res {
+            None => Err(Error::KeyNotFound),
+            _ => Ok(()),
+        }
     }
 }
