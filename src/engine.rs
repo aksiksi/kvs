@@ -28,6 +28,8 @@ impl SledStore {
         let log_file = log_dir.join(Self::LOG_NAME);
         let db = sled::open(log_file)?;
 
+        log::info!("Opened DB, recovered = {}", db.was_recovered());
+
         Ok(Self { db })
     }
 }

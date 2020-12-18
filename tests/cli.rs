@@ -294,6 +294,10 @@ fn cli_access_server(engine: &str, addr: &str) {
     sender.send(()).unwrap();
     handle.join().unwrap();
 
+    // We need this sleep to avoid a fcntl() error caused by 2nd
+    // sled instance failing in try_lock()
+    thread::sleep(Duration::from_secs(3));
+
     // Reopen and check value
     let (sender, receiver) = mpsc::sync_channel(0);
     let mut server = Command::cargo_bin("kvs-server").unwrap();

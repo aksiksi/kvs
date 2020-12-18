@@ -60,8 +60,8 @@ fn main() -> Result<()> {
         Some(engine) => engine,
     };
 
+    // If the user provided an engine that does not match current engine, error out
     if let Some(curr) = current_engine {
-        // If the user provided an engine that does not match current engine, error out
         if curr != engine {
             println!(
                 "Current engine {} does not match selected engine {}",
