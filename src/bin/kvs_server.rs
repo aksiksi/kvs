@@ -1,7 +1,8 @@
 /// KVS Server
 use clap::{App, AppSettings, Arg};
 
-use kvs::{KvStore, server::KvsServer, Result};
+use kvs::engine::{KvsEngine, SledStore};
+use kvs::{server::KvsServer, KvStore, Result};
 
 fn main() -> Result<()> {
     env_logger::builder()
@@ -11,6 +12,7 @@ fn main() -> Result<()> {
     let matches = App::new("kvs-server")
         .setting(AppSettings::ArgRequiredElseHelp)
         .version(env!("CARGO_PKG_VERSION"))
+        .setting(AppSettings::GlobalVersion)
         .author(env!("CARGO_PKG_AUTHORS"))
         .about("KVS Server")
         .arg(Arg::with_name("V").short("V").help("Print version info"))
@@ -41,8 +43,12 @@ fn main() -> Result<()> {
 
     let current_dir = std::env::current_dir()?;
 
+    // Figure out which engine is currently in used based on presence of relevant
+    // log in the current directory
     let current_engine = if KvStore::is_log_present(&current_dir) {
         Some("kvs")
+    } else if SledStore::is_log_present(&current_dir) {
+        Some("sled")
     } else {
         None
     };
@@ -50,6 +56,7 @@ fn main() -> Result<()> {
     let engine = matches.value_of("engine").unwrap();
 
     if let Some(curr) = current_engine {
+        // If the user provided an engine that does not match current engine, error out
         if curr != engine {
             println!(
                 "Current engine {} does not match selected engine {}",
@@ -61,13 +68,15 @@ fn main() -> Result<()> {
 
     log::info!("Engine: {}", engine);
 
-    let engine = match engine {
+    // Setup the appropriate engine
+    let engine: Box<dyn KvsEngine> = match engine {
         "kvs" => {
             let engine = KvStore::open(current_dir)?;
             Box::new(engine)
         }
         "sled" => {
-            unimplemented!()
+            let engine = SledStore::open(current_dir)?;
+            Box::new(engine)
         }
         _ => panic!("Unexpected engine!"),
     };

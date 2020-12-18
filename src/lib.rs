@@ -1,5 +1,5 @@
 pub mod client;
-mod engine;
+pub mod engine;
 mod error;
 mod kvstore;
 pub mod server;

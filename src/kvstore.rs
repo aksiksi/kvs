@@ -8,8 +8,6 @@ use serde::{Deserialize, Serialize};
 use crate::engine::KvsEngine;
 use crate::error::{Error, Result};
 
-pub const LOG_NAME: &str = "kvs.log";
-
 // A single entry in the log
 #[derive(Debug, Deserialize, Serialize)]
 pub(crate) enum Command {
@@ -38,19 +36,20 @@ pub struct KvStore {
 }
 
 impl KvStore {
+    const LOG_NAME: &'static str = "kvs.log";
     const MAX_LOG_SIZE: usize = 1024 * 1024; // 1 MB
 
     /// Returns `true` if a log already exists
     pub fn is_log_present(path: impl Into<PathBuf>) -> bool {
         let log_dir = path.into();
-        let log_file = log_dir.join(LOG_NAME);
+        let log_file = log_dir.join(Self::LOG_NAME);
         log_file.exists()
     }
 
     /// Open an existing log file or create a new one.
     pub fn open(path: impl Into<PathBuf>) -> Result<Self> {
         let log_dir = path.into();
-        let log_file = log_dir.join(LOG_NAME);
+        let log_file = log_dir.join(Self::LOG_NAME);
 
         // Create/open the log in append mode
         let write_log = OpenOptions::new()
@@ -85,7 +84,7 @@ impl KvStore {
     // new log and move it to overwrite the old one.
     fn compact(&mut self) -> Result<()> {
         // Build path to new log
-        let new_log_path = self.log_dir.join(format!("{}.new", LOG_NAME));
+        let new_log_path = self.log_dir.join(format!("{}.new", Self::LOG_NAME));
 
         // Open the new log in append mode
         let new_log = OpenOptions::new()
@@ -128,7 +127,7 @@ impl KvStore {
         self.log_reader = new_log_reader;
 
         // Move new log file to overwrite old log
-        std::fs::rename(new_log_path, self.log_dir.join(LOG_NAME))?;
+        std::fs::rename(new_log_path, self.log_dir.join(Self::LOG_NAME))?;
 
         Ok(())
     }

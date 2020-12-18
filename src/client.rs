@@ -1,7 +1,10 @@
 use std::io::Write;
 use std::net::TcpStream;
 
-use crate::{server::{Request, Response}, Result};
+use crate::{
+    server::{Request, Response},
+    Result,
+};
 
 pub struct KvsClient {
     socket: TcpStream,

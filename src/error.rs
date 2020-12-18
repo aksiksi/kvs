@@ -8,6 +8,7 @@ pub enum Error {
     IOError(String),
     SerializeError(String),
     DeserializeError(String),
+    SledError(String),
     KeyNotFound,
 }
 
@@ -20,6 +21,7 @@ impl std::fmt::Display for Error {
             Self::IOError(msg) => write!(f, "{}", msg.to_string()),
             Self::SerializeError(msg) => write!(f, "SerializeError: {}", msg),
             Self::DeserializeError(msg) => write!(f, "DeserializeError: {}", msg),
+            Self::SledError(msg) => write!(f, "SledError: {}", msg),
             Self::KeyNotFound => write!(f, "Key not found"),
         }
     }
@@ -58,5 +60,11 @@ impl From<String> for Error {
 impl From<&str> for Error {
     fn from(s: &str) -> Self {
         Self::Generic(s.to_owned())
+    }
+}
+
+impl From<sled::Error> for Error {
+    fn from(err: sled::Error) -> Self {
+        Self::SledError(err.to_string())
     }
 }
