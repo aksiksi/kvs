@@ -1,12 +1,7 @@
 use std::path::PathBuf;
 
 use crate::error::{Error, Result};
-
-pub trait KvsEngine {
-    fn set(&mut self, key: String, value: String) -> Result<()>;
-    fn get(&mut self, key: String) -> Result<Option<String>>;
-    fn remove(&mut self, key: String) -> Result<()>;
-}
+use super::KvsEngine;
 
 /// Wrapper for Sled storage engine
 pub struct SledKvsEngine {

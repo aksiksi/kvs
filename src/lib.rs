@@ -1,9 +1,7 @@
 pub mod client;
 pub mod engine;
 mod error;
-mod kvstore;
 pub mod server;
 
-pub use engine::KvsEngine;
+pub use engine::{KvsEngine, KvStore, SledKvsEngine};
 pub use error::{Error, Result};
-pub use kvstore::KvStore;
