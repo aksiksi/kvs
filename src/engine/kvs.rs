@@ -37,7 +37,7 @@ pub struct KvStore {
 
 impl KvStore {
     const LOG_NAME: &'static str = "kvs.log";
-    const MAX_LOG_SIZE: usize = 1024 * 1024; // 1 MB
+    const MAX_LOG_SIZE: usize = 100 * 1024 * 1024; // 100 MB
 
     /// Returns `true` if a log already exists
     pub fn is_log_present(path: impl Into<PathBuf>) -> bool {
@@ -98,20 +98,32 @@ impl KvStore {
         let new_log_reader = BufReader::new(File::open(&new_log_path)?);
 
         // Construct a Vec of all keys and indices, sorted by index in ascending order.
-        let mut log_data: Vec<(&String, &usize)> = self.store.iter().collect();
-        log_data.sort_by(|a, b| a.1.cmp(b.1));
+        // We clone the the store here so that we can modify it in-place while writing data
+        // to the new log.
+        let mut log_data: Vec<(String, usize)> = self
+            .store
+            .clone()
+            .into_iter()
+            .map(|(key, index)| (key, index))
+            .collect();
+        log_data.sort_by(|a, b| a.1.cmp(&b.1));
 
         let mut bytes_written = 0;
 
         // Write out all entries to the new log
-        for (_, index) in log_data.into_iter() {
-            self.log_reader.seek(SeekFrom::Start(*index as u64))?;
+        for (key, index) in log_data.into_iter() {
+            self.log_reader.seek(SeekFrom::Start(index as u64))?;
 
             // TODO(aksiksi): Do we really need to deserialize the command?
             let command: Command = rmp_serde::from_read(&mut self.log_reader)?;
             let buf = rmp_serde::to_vec(&command)?;
 
             new_log_writer.write(&buf)?;
+
+            // Update in-memory index with the position of this key in the _new_ log
+            let new_index = new_log_writer.seek(SeekFrom::Current(0))?;
+            let p = self.store.get_mut(&key).expect("Key is missing from store");
+            *p = new_index as usize;
 
             bytes_written += buf.len();
         }

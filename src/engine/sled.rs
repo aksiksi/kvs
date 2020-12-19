@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
-use crate::error::{Error, Result};
 use super::KvsEngine;
+use crate::error::{Error, Result};
 
 /// Wrapper for Sled storage engine
 pub struct SledKvsEngine {
