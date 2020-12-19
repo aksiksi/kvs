@@ -1,7 +1,7 @@
 /// KVS Server
 use clap::{App, AppSettings, Arg};
 
-use kvs::engine::{KvsEngine, SledStore};
+use kvs::engine::{KvsEngine, SledKvsEngine};
 use kvs::{server::KvsServer, KvStore, Result};
 
 fn main() -> Result<()> {
@@ -46,7 +46,7 @@ fn main() -> Result<()> {
     // log in the current directory
     let current_engine = if KvStore::is_log_present(&current_dir) {
         Some("kvs")
-    } else if SledStore::is_log_present(&current_dir) {
+    } else if SledKvsEngine::is_log_present(&current_dir) {
         Some("sled")
     } else {
         None
@@ -80,7 +80,7 @@ fn main() -> Result<()> {
             Box::new(engine)
         }
         "sled" => {
-            let engine = SledStore::open(current_dir)?;
+            let engine = SledKvsEngine::open(current_dir)?;
             Box::new(engine)
         }
         _ => panic!("Unexpected engine!"),

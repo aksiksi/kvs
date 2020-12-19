@@ -9,11 +9,11 @@ pub trait KvsEngine {
 }
 
 /// Wrapper for Sled storage engine
-pub struct SledStore {
+pub struct SledKvsEngine {
     db: sled::Db,
 }
 
-impl SledStore {
+impl SledKvsEngine {
     const LOG_NAME: &'static str = "sled";
 
     /// Returns `true` if log already exists
@@ -34,9 +34,10 @@ impl SledStore {
     }
 }
 
-impl KvsEngine for SledStore {
+impl KvsEngine for SledKvsEngine {
     fn set(&mut self, key: String, value: String) -> Result<()> {
         self.db.insert(key.as_bytes(), value.as_bytes())?;
+        self.db.flush()?;
         Ok(())
     }
 
@@ -51,6 +52,7 @@ impl KvsEngine for SledStore {
 
     fn remove(&mut self, key: String) -> Result<()> {
         let res = self.db.remove(key.as_bytes())?;
+        self.db.flush()?;
 
         match res {
             None => Err(Error::KeyNotFound),
