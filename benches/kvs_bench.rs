@@ -9,6 +9,9 @@ use kvs::{KvStore, KvsEngine, SledKvsEngine};
 const NUM_VALUES: usize = 100;
 
 fn kvs_bench(c: &mut Criterion) {
+    let mut group = c.benchmark_group("kvs");
+    let group = group.sample_size(10);
+
     // Create a temporary directory for the bench
     let dir = TempDir::new().unwrap();
     let path = dir.path();
@@ -36,7 +39,7 @@ fn kvs_bench(c: &mut Criterion) {
         pairs.push((key, value));
     }
 
-    c.bench_function("kvs_write 100", |b| {
+    group.bench_function("kvs_write 100", |b| {
         b.iter(|| {
             for (key, value) in pairs.iter() {
                 kvs.set(key.clone(), value.clone()).unwrap();
@@ -49,7 +52,7 @@ fn kvs_bench(c: &mut Criterion) {
         random_key
     }).collect::<Vec<_>>();
 
-    c.bench_function("kvs_read 1000", |b| {
+    group.bench_function("kvs_read 1000", |b| {
         b.iter(|| {
             for key in random_keys.iter() {
                 kvs.get(key.clone()).unwrap();

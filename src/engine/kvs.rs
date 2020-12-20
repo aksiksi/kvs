@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
-use std::io::{BufReader, BufWriter, Seek, SeekFrom, Write};
+use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
@@ -33,11 +33,17 @@ pub struct KvStore {
     // Directory containing the log
     // Used during log compaction
     log_dir: PathBuf,
+
+    // Whether or not the on-disk store is compactable
+    is_compactable: bool,
+
+    // Last compaction size
+    last_compact_size: usize,
 }
 
 impl KvStore {
     const LOG_NAME: &'static str = "kvs.log";
-    const MAX_LOG_SIZE: usize = 100 * 1024 * 1024; // 100 MB
+    const MAX_LOG_SIZE: usize = 1 * 1024 * 1024; // 1 MB
 
     /// Returns `true` if a log already exists
     pub fn is_log_present(path: impl Into<PathBuf>) -> bool {
@@ -66,6 +72,8 @@ impl KvStore {
             log_reader: BufReader::new(read_log),
             log_pos: 0,
             log_dir,
+            is_compactable: false,
+            last_compact_size: 0,
         };
 
         // Load existing log entries into memory
@@ -114,18 +122,26 @@ impl KvStore {
         for (key, index) in log_data.into_iter() {
             self.log_reader.seek(SeekFrom::Start(index as u64))?;
 
-            // TODO(aksiksi): Do we really need to deserialize the command?
-            let command: Command = rmp_serde::from_read(&mut self.log_reader)?;
-            let buf = rmp_serde::to_vec(&command)?;
+            // Read the size of this command to determine how many bytes we need
+            // to copy from the old log to the new log
+            let size = Self::read_command_size(&mut self.log_reader)?;
 
-            new_log_writer.write(&buf)?;
+            // Create a wrapped `BufReader` that will only return the next `size` bytes
+            let mut wrapped_reader = self.log_reader.by_ref().take(size);
 
-            // Update in-memory index with the position of this key in the _new_ log
-            let new_index = new_log_writer.seek(SeekFrom::Current(0))?;
+            // Write the size of the command to the new log
+            new_log_writer.write(&size.to_le_bytes())?;
+
+            // Copy the command (as bytes) from the old log to the new log
+            std::io::copy(&mut wrapped_reader, &mut new_log_writer)?;
+
+            // Update the in-memory index with the position of this key in the _new_ log
+            // Note: `bytes_written` tracks our position in the new log
             let p = self.store.get_mut(&key).expect("Key is missing from store");
-            *p = new_index as usize;
+            *p = bytes_written as usize;
 
-            bytes_written += buf.len();
+            // We wrote the size (u64) and the command to the new log
+            bytes_written += std::mem::size_of_val(&size) + size as usize;
         }
 
         // Ensure all data is flushed to the new log (fsync)
@@ -161,15 +177,12 @@ impl KvStore {
 
         // Read each log command into memory
         while pos < size {
+            let size = Self::read_command_size(&mut self.log_reader)?;
             let command: Command = rmp_serde::from_read(&mut self.log_reader)?;
 
             self.process_command(command, pos);
 
-            // Figure out the current position in the log
-            // We need to do it this way because rpm_serde does not return
-            // the size of the encoded command
-            // TODO(aksiksi): Is there a cleaner way to do this?
-            pos = self.log_reader.seek(SeekFrom::Current(0))? as usize;
+            pos += std::mem::size_of_val(&size) + size as usize;
         }
 
         // We are now at the end of the log - pos = len(log)
@@ -191,6 +204,20 @@ impl KvStore {
             _ => (),
         }
     }
+
+    #[inline]
+    fn read_command_size(reader: &mut impl Read) -> Result<u64> {
+        let mut size = [0u8; 8];
+        reader.read(&mut size)?;
+        Ok(u64::from_le_bytes(size))
+    }
+
+    #[inline]
+    fn write_command_size(writer: &mut impl Write, size: u64) -> Result<()> {
+        let size = size.to_le_bytes();
+        writer.write(&size)?;
+        Ok(())
+    }
 }
 
 impl KvsEngine for KvStore {
@@ -199,19 +226,30 @@ impl KvsEngine for KvStore {
         let command = Command::Set(key.clone(), value);
         let buf = rmp_serde::to_vec(&command)?;
 
-        // If the log has hit a certain size, try to compact it
-        if self.log_pos >= Self::MAX_LOG_SIZE {
+        // If the log is "dirty" and has hit a certain size, compact it
+        if self.is_compactable && (self.log_pos - self.last_compact_size) >= Self::MAX_LOG_SIZE {
             self.compact()?;
         }
+
+        // Write the size of this command as a 64 bit number in LE form
+        let size = buf.len() as u64;
+        Self::write_command_size(&mut self.log_writer, size)?;
 
         // Insert this command into the log
         self.log_writer.write(&buf)?;
         self.log_writer.flush()?;
 
         // Store the key in the in-memory index
-        self.store.insert(key, self.log_pos);
+        if let Some(pos) = self.store.get_mut(&key) {
+            // If this key already exists, mark the log as compactable
+            *pos = self.log_pos;
+            self.is_compactable = true;
+        } else {
+            self.store.insert(key, self.log_pos);
+        }
 
-        self.log_pos += buf.len();
+        // We wrote the size (u64) and the command
+        self.log_pos += std::mem::size_of_val(&size) + size as usize;
 
         Ok(())
     }
@@ -227,7 +265,10 @@ impl KvsEngine for KvStore {
         // Seek to the required position
         self.log_reader.seek(SeekFrom::Start(pos as u64))?;
 
-        // Read the command and extract the value
+        // Read the command size
+        let _ = Self::read_command_size(&mut self.log_reader)?;
+
+        // Now read the command and extract the value
         let value = match rmp_serde::from_read(&mut self.log_reader)? {
             Command::Set(k, v) => {
                 assert!(k == key, "Invalid key found at pos {}", pos);
@@ -235,9 +276,6 @@ impl KvsEngine for KvStore {
             }
             _ => panic!("Expected a SET operation at position {}", pos),
         };
-
-        // Seek back to the end of log
-        self.log_reader.seek(SeekFrom::End(1))?;
 
         Ok(Some(value))
     }
@@ -249,9 +287,12 @@ impl KvsEngine for KvStore {
                 // Append an command to the log
                 let command = Command::Remove(key);
                 let buf = rmp_serde::to_vec(&command)?;
+                let size = buf.len() as u64;
+                Self::write_command_size(&mut self.log_writer, size)?;
                 self.log_writer.write(&buf)?;
                 self.log_writer.flush()?;
-                self.log_pos += buf.len();
+                self.is_compactable = true;
+                self.log_pos += std::mem::size_of_val(&size) + size as usize;
                 Ok(())
             }
         }
