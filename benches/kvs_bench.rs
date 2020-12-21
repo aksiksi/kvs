@@ -6,8 +6,6 @@ use tempfile::TempDir;
 
 use kvs::{KvStore, KvsEngine, SledKvsEngine};
 
-const NUM_VALUES: usize = 100;
-
 fn kvs_bench(c: &mut Criterion) {
     let mut group = c.benchmark_group("kvs");
     let group = group.sample_size(10);
@@ -21,13 +19,13 @@ fn kvs_bench(c: &mut Criterion) {
     // Generate 100 keys and values of random length in [1, 100000] bytes.
     let mut rng = rand::thread_rng();
     let between = Uniform::from(1..100000);
-    let key_lengths = (0..NUM_VALUES)
+    let key_lengths = (0..100)
         .map(|_| between.sample(&mut rng))
         .collect::<Vec<_>>();
-    let value_lengths = (0..NUM_VALUES)
+    let value_lengths = (0..100)
         .map(|_| between.sample(&mut rng))
         .collect::<Vec<_>>();
-    let mut pairs = Vec::with_capacity(NUM_VALUES);
+    let mut pairs = Vec::with_capacity(100);
 
     for (key_length, value_length) in key_lengths.iter().zip(value_lengths.iter()) {
         let key: String = (0..*key_length)
@@ -47,6 +45,7 @@ fn kvs_bench(c: &mut Criterion) {
         });
     });
 
+    // Pick 1000 random keys from the set of 100 generated keys
     let random_keys = (0..1000).map(|_| {
         let random_key = pairs.choose(&mut rng).unwrap().0.clone();
         random_key
@@ -71,13 +70,13 @@ fn sled_bench(c: &mut Criterion) {
     // Generate 100 keys and values of random length in [1, 100000] bytes.
     let mut rng = rand::thread_rng();
     let between = Uniform::from(1..100000);
-    let key_lengths = (0..NUM_VALUES)
+    let key_lengths = (0..100)
         .map(|_| between.sample(&mut rng))
         .collect::<Vec<_>>();
-    let value_lengths = (0..NUM_VALUES)
+    let value_lengths = (0..100)
         .map(|_| between.sample(&mut rng))
         .collect::<Vec<_>>();
-    let mut pairs = Vec::with_capacity(NUM_VALUES);
+    let mut pairs = Vec::with_capacity(100);
 
     for (key_length, value_length) in key_lengths.iter().zip(value_lengths.iter()) {
         let key: String = (0..*key_length)
@@ -97,6 +96,7 @@ fn sled_bench(c: &mut Criterion) {
         });
     });
 
+    // Pick 1000 random keys from the set of 100 generated keys
     let random_keys = (0..1000).map(|_| {
         let random_key = pairs.choose(&mut rng).unwrap().0.clone();
         random_key
